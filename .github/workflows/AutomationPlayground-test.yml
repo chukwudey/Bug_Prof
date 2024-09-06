@@ -1,24 +1,41 @@
-image: python:3.9
+name: Python Tests
 
-stages:
-  - test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
-variables:
-  FIREFOX_DRIVER_VERSION: "0.28.0"
-  FIREFOX_DRIVER_URL: "https://github.com/mozilla/geckodriver/releases/download/v${FIREFOX_DRIVER_VERSION}/geckodriver-v${FIREFOX_DRIVER_VERSION}-linux64.tar.gz"
+jobs:
+  test:
+    runs-on: ubuntu-latest
 
-before_script:
-  - apt-get update && apt-get install -y xvfb firefox
-  - wget -O ~/FirefoxSetup.tar.bz2 "${FIREFOX_DRIVER_URL}"
-  - tar xjf ~/FirefoxSetup.tar.bz2 -C /opt/
-  - ln -s /opt/firefox/firefox /usr/lib/firefox
-  - export PATH=$PATH:/opt/firefox/
-  - pip install selenium pytest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-test_firefox:
-  stage: test
-  script:
-    - xvfb-run -a pytest tests/test_selenium.py
-  artifacts:
-    paths:
-      - reports/
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.8'  # Specify your Python version here
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+          pip install pytest pytest-html
+
+      - name: Run tests
+        run: |
+          source venv/bin/activate
+          pytest --html=report.html -p no:warnings
+
+      - name: Upload HTML report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: pytest-report
+          path: report.html
